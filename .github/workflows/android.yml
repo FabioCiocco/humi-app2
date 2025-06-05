@@ -1,4 +1,4 @@
-name: Build HUMI Signed APK
+name: Build HUMI App Bundle
 
 on:
   workflow_dispatch:
@@ -36,10 +36,6 @@ jobs:
     - name: Add Android platform
       run: npx cap add android
         
-    - name: Create Android assets directory
-      run: |
-        mkdir -p android/app/src/main/assets
-        
     - name: Sync Capacitor
       run: npx cap sync android
         
@@ -47,43 +43,54 @@ jobs:
       run: |
         keytool -genkey -v -keystore android/app/upload-keystore.jks \
           -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias upload -storepass android -keypass android \
-          -dname "CN=HUMI, OU=Development, O=HUMI, L=Rome, S=Lazio, C=IT"
+          -alias upload -storepass humi2025 -keypass humi2025 \
+          -dname "CN=HUMI App, OU=Mobile Development, O=HUMI, L=Rome, S=Lazio, C=IT"
         
     - name: Configure signing
       run: |
         cat >> android/gradle.properties << EOF
         MYAPP_UPLOAD_STORE_FILE=upload-keystore.jks
         MYAPP_UPLOAD_KEY_ALIAS=upload
-        MYAPP_UPLOAD_STORE_PASSWORD=android
-        MYAPP_UPLOAD_KEY_PASSWORD=android
+        MYAPP_UPLOAD_STORE_PASSWORD=humi2025
+        MYAPP_UPLOAD_KEY_PASSWORD=humi2025
         EOF
         
     - name: Update build.gradle for signing
       run: |
-        sed -i '/android {/a\
-            signingConfigs {\
-                release {\
-                    if (project.hasProperty("MYAPP_UPLOAD_STORE_FILE")) {\
-                        storeFile file(MYAPP_UPLOAD_STORE_FILE)\
-                        storePassword MYAPP_UPLOAD_STORE_PASSWORD\
-                        keyAlias MYAPP_UPLOAD_KEY_ALIAS\
-                        keyPassword MYAPP_UPLOAD_KEY_PASSWORD\
-                    }\
-                }\
-            }' android/app/build.gradle
-            
-        sed -i '/buildTypes {/,/}/ s/debug {/debug {\
-                signingConfig signingConfigs.release/' android/app/build.gradle
+        cat >> android/app/build.gradle << 'EOF'
         
-    - name: Build signed APK
+        android {
+            signingConfigs {
+                release {
+                    if (project.hasProperty("MYAPP_UPLOAD_STORE_FILE")) {
+                        storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                        storePassword MYAPP_UPLOAD_STORE_PASSWORD
+                        keyAlias MYAPP_UPLOAD_KEY_ALIAS
+                        keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+                    }
+                }
+            }
+            buildTypes {
+                release {
+                    signingConfig signingConfigs.release
+                }
+                debug {
+                    signingConfig signingConfigs.release
+                }
+            }
+        }
+        EOF
+        
+    - name: Build App Bundle
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
+        ./gradlew bundleRelease --no-daemon
         
-    - name: Upload signed APK
+    - name: Upload App Bundle
       uses: actions/upload-artifact@v4
       with:
-        name: humi-signed-apk
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        name: humi-app-bundle
+        path: android/app/build/outputs/bundle/release/app-release.aab
+   
+    
