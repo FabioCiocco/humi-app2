@@ -28,13 +28,17 @@ jobs:
     - name: Install dependencies
       run: npm install
         
-    - name: Create web build
+    - name: Create web build directory
       run: |
-        mkdir -p dist/public
-        echo '<!DOCTYPE html><html><head><title>HUMI</title></head><body><div id="root"></div></body></html>' > dist/public/index.html
+        mkdir -p dist
+        echo '<!DOCTYPE html><html><head><title>HUMI</title></head><body><div id="root"></div></body></html>' > dist/index.html
         
     - name: Add Android platform
       run: npx cap add android
+        
+    - name: Create Android assets directory
+      run: |
+        mkdir -p android/app/src/main/assets
         
     - name: Sync Capacitor
       run: npx cap sync android
@@ -43,7 +47,7 @@ jobs:
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
+        ./gradlew assembleDebug --no-daemon --stacktrace
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
