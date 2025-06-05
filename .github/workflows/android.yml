@@ -33,6 +33,9 @@ jobs:
         mkdir -p dist/public
         echo '<!DOCTYPE html><html><head><title>HUMI</title></head><body><div id="root"></div></body></html>' > dist/public/index.html
         
+    - name: Add Android platform
+      run: npx cap add android
+        
     - name: Sync Capacitor
       run: npx cap sync android
         
