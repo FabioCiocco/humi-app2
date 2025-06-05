@@ -1,4 +1,4 @@
-name: Build HUMI APK
+name: Build HUMI Signed APK
 
 on:
   workflow_dispatch:
@@ -43,14 +43,47 @@ jobs:
     - name: Sync Capacitor
       run: npx cap sync android
         
-    - name: Build APK
+    - name: Generate upload keystore
+      run: |
+        keytool -genkey -v -keystore android/app/upload-keystore.jks \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias upload -storepass android -keypass android \
+          -dname "CN=HUMI, OU=Development, O=HUMI, L=Rome, S=Lazio, C=IT"
+        
+    - name: Configure signing
+      run: |
+        cat >> android/gradle.properties << EOF
+        MYAPP_UPLOAD_STORE_FILE=upload-keystore.jks
+        MYAPP_UPLOAD_KEY_ALIAS=upload
+        MYAPP_UPLOAD_STORE_PASSWORD=android
+        MYAPP_UPLOAD_KEY_PASSWORD=android
+        EOF
+        
+    - name: Update build.gradle for signing
+      run: |
+        sed -i '/android {/a\
+            signingConfigs {\
+                release {\
+                    if (project.hasProperty("MYAPP_UPLOAD_STORE_FILE")) {\
+                        storeFile file(MYAPP_UPLOAD_STORE_FILE)\
+                        storePassword MYAPP_UPLOAD_STORE_PASSWORD\
+                        keyAlias MYAPP_UPLOAD_KEY_ALIAS\
+                        keyPassword MYAPP_UPLOAD_KEY_PASSWORD\
+                    }\
+                }\
+            }' android/app/build.gradle
+            
+        sed -i '/buildTypes {/,/}/ s/debug {/debug {\
+                signingConfig signingConfigs.release/' android/app/build.gradle
+        
+    - name: Build signed APK
       run: |
         cd android
         chmod +x gradlew
         ./gradlew assembleDebug --no-daemon
         
-    - name: Upload APK
+    - name: Upload signed APK
       uses: actions/upload-artifact@v4
       with:
-        name: humi-apk
+        name: humi-signed-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
