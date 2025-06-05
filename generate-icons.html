@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HUMI Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="downloadIcon(512)">Download 512x512</button>
+    <button onclick="downloadIcon(192)">Download 192x192</button>
+    <button onclick="downloadIcon(144)">Download 144x144</button>
+    <button onclick="downloadIcon(96)">Download 96x96</button>
+    <button onclick="downloadIcon(72)">Download 72x72</button>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawIcon(size) {
+            canvas.width = size;
+            canvas.height = size;
+            
+            // Background gradient
+            const bgGradient = ctx.createLinearGradient(0, 0, size, size);
+            bgGradient.addColorStop(0, '#4F46E5');
+            bgGradient.addColorStop(1, '#7C3AED');
+            
+            // Rounded rectangle background
+            const radius = size * 0.23;
+            ctx.fillStyle = bgGradient;
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(0, 0, size, size, radius);
+            } else {
+                // Fallback for older browsers
+                ctx.rect(0, 0, size, size);
+            }
+            ctx.fill();
+            
+            // Icon gradient
+            const iconGradient = ctx.createLinearGradient(0, 0, size, size);
+            iconGradient.addColorStop(0, '#F8BBD9');
+            iconGradient.addColorStop(1, '#E879F9');
+            
+            // Scale factor for responsive sizing
+            const scale = size / 512;
+            
+            // Head outline
+            ctx.strokeStyle = iconGradient;
+            ctx.lineWidth = 8 * scale;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.fillStyle = 'transparent';
+            
+            ctx.beginPath();
+            ctx.moveTo(180 * scale, 160 * scale);
+            ctx.quadraticCurveTo(180 * scale, 120 * scale, 220 * scale, 120 * scale);
+            ctx.lineTo(292 * scale, 120 * scale);
+            ctx.quadraticCurveTo(332 * scale, 120 * scale, 332 * scale, 160 * scale);
+            ctx.lineTo(332 * scale, 280 * scale);
+            ctx.quadraticCurveTo(332 * scale, 320 * scale, 292 * scale, 320 * scale);
+            ctx.lineTo(260 * scale, 320 * scale);
+            ctx.lineTo(260 * scale, 360 * scale);
+            ctx.quadraticCurveTo(260 * scale, 380 * scale, 240 * scale, 380 * scale);
+            ctx.lineTo(220 * scale, 380 * scale);
+            ctx.quadraticCurveTo(200 * scale, 380 * scale, 200 * scale, 360 * scale);
+            ctx.lineTo(200 * scale, 320 * scale);
+            ctx.lineTo(220 * scale, 320 * scale);
+            ctx.quadraticCurveTo(180 * scale, 320 * scale, 180 * scale, 280 * scale);
+            ctx.closePath();
+            ctx.stroke();
+            
+            // Heart
+            ctx.fillStyle = iconGradient;
+            ctx.beginPath();
+            ctx.moveTo(254 * scale, 250 * scale);
+            ctx.quadraticCurveTo(226 * scale, 185 * scale, 240 * scale, 185 * scale);
+            ctx.quadraticCurveTo(254 * scale, 185 * scale, 254 * scale, 200 * scale);
+            ctx.quadraticCurveTo(254 * scale, 185 * scale, 268 * scale, 185 * scale);
+            ctx.quadraticCurveTo(296 * scale, 185 * scale, 282 * scale, 220 * scale);
+            ctx.quadraticCurveTo(268 * scale, 240 * scale, 254 * scale, 250 * scale);
+            ctx.fill();
+            
+            // Brain waves
+            ctx.strokeStyle = iconGradient;
+            ctx.lineWidth = 3 * scale;
+            ctx.globalAlpha = 0.6;
+            ctx.beginPath();
+            ctx.ellipse(254 * scale, 215 * scale, 45 * scale, 20 * scale, 0, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            ctx.lineWidth = 2 * scale;
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath();
+            ctx.ellipse(254 * scale, 215 * scale, 60 * scale, 28 * scale, 0, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
+            
+            // HUMI text
+            ctx.fillStyle = iconGradient;
+            ctx.font = `bold ${48 * scale}px Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('HUMI', 256 * scale, 420 * scale);
+            
+            // Tagline
+            ctx.fillStyle = 'rgba(248,187,217,0.8)';
+            ctx.font = `${16 * scale}px Arial, sans-serif`;
+            ctx.fillText('DAILY JOURNAL', 256 * scale, 450 * scale);
+        }
+
+        function downloadIcon(size) {
+            drawIcon(size);
+            const link = document.createElement('a');
+            link.download = `humi-icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Draw initial icon
+        drawIcon(512);
+    </script>
+</body>
+</html>

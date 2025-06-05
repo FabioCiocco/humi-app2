@@ -1,0 +1,56 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F8BBD9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E879F9;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="120" ry="120" fill="url(#backgroundGradient)"/>
+  
+  <!-- Head outline -->
+  <path d="M 180 160 Q 180 120 220 120 L 292 120 Q 332 120 332 160 L 332 280 Q 332 320 292 320 L 260 320 L 260 360 Q 260 380 240 380 L 220 380 Q 200 380 200 360 L 200 320 L 220 320 Q 180 320 180 280 Z" 
+        fill="none" 
+        stroke="url(#iconGradient)" 
+        stroke-width="8" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <!-- Heart in brain -->
+  <path d="M 226 200 Q 226 185 240 185 Q 254 185 254 200 Q 268 185 282 185 Q 296 185 296 200 Q 296 220 254 250 Q 240 240 226 200 Z" 
+        fill="url(#iconGradient)"/>
+  
+  <!-- Brain waves -->
+  <ellipse cx="254" cy="215" rx="45" ry="20" 
+           fill="none" 
+           stroke="url(#iconGradient)" 
+           stroke-width="3" 
+           opacity="0.6"/>
+  <ellipse cx="254" cy="215" rx="60" ry="28" 
+           fill="none" 
+           stroke="url(#iconGradient)" 
+           stroke-width="2" 
+           opacity="0.4"/>
+  
+  <!-- HUMI text -->
+  <text x="256" y="420" 
+        font-family="Arial, sans-serif" 
+        font-size="48" 
+        font-weight="bold" 
+        text-anchor="middle" 
+        fill="url(#iconGradient)" 
+        letter-spacing="4px">HUMI</text>
+  
+  <!-- Tagline -->
+  <text x="256" y="450" 
+        font-family="Arial, sans-serif" 
+        font-size="16" 
+        text-anchor="middle" 
+        fill="rgba(248,187,217,0.8)" 
+        letter-spacing="2px">DAILY JOURNAL</text>
+</svg>
