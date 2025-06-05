@@ -11,6 +11,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
     - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
@@ -20,45 +25,25 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Create web assets
+    - name: Install dependencies
+      run: npm install
+        
+    - name: Create minimal web build
       run: |
         mkdir -p dist/public
-        cat > dist/public/index.html << 'EOF'
-        <!DOCTYPE html>
-        <html lang="it">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>HUMI - Daily Journal</title>
-        </head>
-        <body>
-            <div id="root">
-                <h1>HUMI App</h1>
-                <p>Daily Journal for Emotional Well-being</p>
-            </div>
-        </body>
-        </html>
-        EOF
+        echo '<!DOCTYPE html><html><head><title>HUMI</title></head><body><div id="root"></div></body></html>' > dist/public/index.html
         
-    - name: Install Capacitor CLI
-      run: npm install -g @capacitor/cli
-      
     - name: Sync Capacitor
-      run: |
-        npx cap sync android
+      run: npx cap sync android
         
     - name: Build APK
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon --stacktrace
-        
-    - name: Verify APK
-      run: |
-        ls -la android/app/build/outputs/apk/debug/
+        ./gradlew assembleDebug --no-daemon
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: humi-debug-apk
+        name: humi-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
