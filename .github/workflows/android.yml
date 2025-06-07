@@ -56,4 +56,62 @@ jobs:
     - name: Manual assets copy
       run: |
         mkdir -p android/app/src/main/assets
-        cp -r dist/* android/app/src
+        cp -r dist/* android/app/src/main/assets/ || echo "Assets copied"
+        echo '{}' > android/app/src/main/assets/capacitor.config.json
+        echo '[]' > android/app/src/main/assets/capacitor.plugins.json
+        
+    - name: Generate keystore
+      run: |
+        keytool -genkey -v -keystore android/app/upload-keystore.jks \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias upload -storepass humi2025 -keypass humi2025 \
+          -dname "CN=HUMI App, OU=Mobile, O=HUMI, L=Rome, S=Lazio, C=IT"
+        
+    - name: Configure signing
+      run: |
+        cat >> android/gradle.properties << EOF
+        MYAPP_UPLOAD_STORE_FILE=upload-keystore.jks
+        MYAPP_UPLOAD_KEY_ALIAS=upload
+        MYAPP_UPLOAD_STORE_PASSWORD=humi2025
+        MYAPP_UPLOAD_KEY_PASSWORD=humi2025
+        EOF
+        
+    - name: Add signing to build.gradle
+      run: |
+        sed -i '/android {/a\
+            signingConfigs {\
+                release {\
+                    storeFile file("upload-keystore.jks")\
+                    storePassword "humi2025"\
+                    keyAlias "upload"\
+                    keyPassword "humi2025"\
+                }\
+            }' android/app/build.gradle
+            
+        sed -i '/buildTypes {/,/}/ s/release {/release {\
+                signingConfig signingConfigs.release/' android/app/build.gradle
+        
+    - name: Verify build.gradle
+      run: |
+        echo "=== Current build.gradle ==="
+        cat android/app/build.gradle
+        
+    - name: Build App Bundle
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew bundleRelease --no-daemon --stacktrace
+        
+    - name: List output files
+      run: |
+        echo "=== Bundle output directory ==="
+        ls -la android/app/build/outputs/bundle/release/ || echo "Release directory not found"
+        echo "=== All bundle outputs ==="
+        find android/app/build/outputs -name "*.aab" -o -name "*.apk" || echo "No AAB/APK files found"
+        
+    - name: Upload App Bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: humi-app-bundle-v1-0-1
+        path: android/app/build/outputs/bundle/release/*.aab
+        if-no-files-found: error
