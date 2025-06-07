@@ -39,7 +39,7 @@ jobs:
         import type { CapacitorConfig } from '@capacitor/cli';
         
         const config: CapacitorConfig = {
-          appId: 'com.humi.app',
+          appId: 'com.humi.journal',
           appName: 'HUMI',
           webDir: 'dist',
           server: {
@@ -60,58 +60,44 @@ jobs:
         echo '{}' > android/app/src/main/assets/capacitor.config.json
         echo '[]' > android/app/src/main/assets/capacitor.plugins.json
         
-    - name: Generate keystore
+    - name: Create upload keystore with specific settings
       run: |
         keytool -genkey -v -keystore android/app/upload-keystore.jks \
-          -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias upload -storepass humi2025 -keypass humi2025 \
-          -dname "CN=HUMI App, OU=Mobile, O=HUMI, L=Rome, S=Lazio, C=IT"
+          -keyalg RSA -keysize 2048 -validity 25000 \
+          -alias upload -storepass humijournal2025 -keypass humijournal2025 \
+          -dname "CN=HUMI Journal, OU=HUMI Development Team, O=HUMI, L=Rome, S=Lazio, C=IT"
         
-    - name: Configure signing
+    - name: Configure signing properties
       run: |
         cat >> android/gradle.properties << EOF
-        MYAPP_UPLOAD_STORE_FILE=upload-keystore.jks
-        MYAPP_UPLOAD_KEY_ALIAS=upload
-        MYAPP_UPLOAD_STORE_PASSWORD=humi2025
-        MYAPP_UPLOAD_KEY_PASSWORD=humi2025
+        HUMI_RELEASE_STORE_FILE=upload-keystore.jks
+        HUMI_RELEASE_KEY_ALIAS=upload
+        HUMI_RELEASE_STORE_PASSWORD=humijournal2025
+        HUMI_RELEASE_KEY_PASSWORD=humijournal2025
         EOF
         
-    - name: Add signing to build.gradle
+    - name: Update build.gradle for proper signing
       run: |
-        sed -i '/android {/a\
+        sed -i '/signingConfigs {/,/}/c\
             signingConfigs {\
                 release {\
                     storeFile file("upload-keystore.jks")\
-                    storePassword "humi2025"\
+                    storePassword "humijournal2025"\
                     keyAlias "upload"\
-                    keyPassword "humi2025"\
+                    keyPassword "humijournal2025"\
                 }\
             }' android/app/build.gradle
-            
-        sed -i '/buildTypes {/,/}/ s/release {/release {\
-                signingConfig signingConfigs.release/' android/app/build.gradle
         
-    - name: Verify build.gradle
-      run: |
-        echo "=== Current build.gradle ==="
-        cat android/app/build.gradle
-        
-    - name: Build App Bundle
+    - name: Build signed App Bundle
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew bundleRelease --no-daemon --stacktrace
+        ./gradlew clean bundleRelease --no-daemon --stacktrace
         
-    - name: List output files
+    - name: Verify bundle signature
       run: |
-        echo "=== Bundle output directory ==="
-        ls -la android/app/build/outputs/bundle/release/ || echo "Release directory not found"
-        echo "=== All bundle outputs ==="
-        find android/app/build/outputs -name "*.aab" -o -name "*.apk" || echo "No AAB/APK files found"
+        cd android/app/build/outputs/bundle/release
+        ls -la
         
     - name: Upload App Bundle
-      uses: actions/upload-artifact@v4
-      with:
-        name: humi-app-bundle-v1-0-1
-        path: android/app/build/outputs/bundle/release/*.aab
-        if-no-files-found: error
+      uses: actions/upload-artifact
