@@ -100,4 +100,8 @@ jobs:
         ls -la
         
     - name: Upload App Bundle
-      uses: actions/upload-artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: humi-signed-bundle
+        path: android/app/build/outputs/bundle/release/app-release.aab
+        if-no-files-found: error
