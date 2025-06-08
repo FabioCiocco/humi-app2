@@ -84,6 +84,20 @@ jobs:
         echo "HUMI_RELEASE_STORE_PASSWORD=android" >> android/gradle.properties
         echo "HUMI_RELEASE_KEY_PASSWORD=android" >> android/gradle.properties
         
+    - name: Fix Java compatibility
+      run: |
+        # Force Java 17 in build.gradle
+        sed -i 's/sourceCompatibility JavaVersion.VERSION_21/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
+        sed -i 's/targetCompatibility JavaVersion.VERSION_21/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
+        sed -i 's/jvmTarget = "21"/jvmTarget = "17"/g' android/app/build.gradle
+        sed -i 's/compileSdk 35/compileSdk 34/g' android/app/build.gradle
+        sed -i 's/targetSdk 35/targetSdk 34/g' android/app/build.gradle
+        
+        # Also check capacitor modules
+        find android -name "build.gradle" -exec sed -i 's/sourceCompatibility JavaVersion.VERSION_21/sourceCompatibility JavaVersion.VERSION_17/g' {} \;
+        find android -name "build.gradle" -exec sed -i 's/targetCompatibility JavaVersion.VERSION_21/targetCompatibility JavaVersion.VERSION_17/g' {} \;
+        find android -name "build.gradle" -exec sed -i 's/jvmTarget = "21"/jvmTarget = "17"/g' {} \;
+        
     - name: Make Gradle executable
       run: chmod +x android/gradlew
         
