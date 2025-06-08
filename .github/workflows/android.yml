@@ -44,4 +44,112 @@ jobs:
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HUMI</title>
   <meta name="theme-color" content="#667eea">
-  <style
+  <style>
+    body { 
+      font-family: system-ui, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; 
+      margin: 0; 
+      min-height: 100vh; 
+      display: flex;
+      align-items: center; 
+      justify-content: center; 
+      text-align: center;
+    }
+    .app { max-width: 400px; padding: 40px; }
+    h1 { font-size: 3em; margin-bottom: 20px; }
+    .subtitle { font-size: 1.2em; opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div style="font-size: 4em; margin-bottom: 20px;">🌱</div>
+    <h1>HUMI</h1>
+    <div class="subtitle">Daily Journal for Emotional Wellbeing</div>
+  </div>
+</body>
+</html>
+EOF
+        echo "Web build created"
+        ls -la client/dist/
+        
+    - name: Sync Capacitor
+      run: |
+        npx cap add android --quiet || true
+        npx cap sync android --quiet
+        echo "Capacitor sync completed"
+        
+    - name: Generate signing key
+      run: |
+        mkdir -p android/app
+        keytool -genkey -v -keystore android/app/release.keystore \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias release -storepass android -keypass android \
+          -dname "CN=HUMI, OU=Mobile, O=HUMI, L=IT, S=IT, C=IT"
+        echo "Keystore generated"
+        
+    - name: Configure Gradle for signing
+      run: |
+        cat >> android/gradle.properties << EOF
+android.useAndroidX=true
+android.enableJetifier=true
+MYAPP_RELEASE_STORE_FILE=release.keystore
+MYAPP_RELEASE_KEY_ALIAS=release
+MYAPP_RELEASE_STORE_PASSWORD=android
+MYAPP_RELEASE_KEY_PASSWORD=android
+EOF
+        echo "Gradle properties configured"
+        
+    - name: Update build.gradle for signing
+      run: |
+        cat >> android/app/build.gradle << 'EOF'
+android {
+    signingConfigs {
+        release {
+            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+                storeFile file(MYAPP_RELEASE_STORE_FILE)
+                storePassword MYAPP_RELEASE_STORE_PASSWORD
+                keyAlias MYAPP_RELEASE_KEY_ALIAS
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+EOF
+        echo "Build.gradle updated"
+        
+    - name: Build Android App Bundle
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew clean
+        ./gradlew bundleRelease --no-daemon --stacktrace
+        echo "Build completed"
+        
+    - name: Verify and upload AAB
+      run: |
+        find android -name "*.aab" -type f
+        AAB_FILE=$(find android -name "*.aab" -type f | head -1)
+        if [ -n "$AAB_FILE" ]; then
+          echo "AAB found: $AAB_FILE"
+          ls -lh "$AAB_FILE"
+          mkdir -p artifacts
+          cp "$AAB_FILE" artifacts/humi-release.aab
+        else
+          echo "No AAB file found"
+          exit 1
+        fi
+        
+    - name: Upload App Bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: humi-android-bundle
+        path: artifacts/humi-release.aab
+        retention-days: 30
