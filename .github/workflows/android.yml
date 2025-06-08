@@ -1,4 +1,4 @@
-name: Build Google Play Bundle v1.0.2 Fixed
+name: HUMI Final Bundle v1.0.2
 
 on:
   workflow_dispatch:
@@ -8,15 +8,15 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Setup Node.js 20
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         
-    - name: Setup Java 17
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
@@ -28,45 +28,28 @@ jobs:
     - name: Install dependencies
       run: npm install
         
-    - name: Create web build
+    - name: Create minimal web build
       run: |
         mkdir -p dist
-        cat > dist/index.html << 'EOF'
-        <!DOCTYPE html>
-        <html lang="it">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>HUMI - Daily Journal</title>
-        </head>
-        <body>
-            <div id="root">
-                <h1>HUMI</h1>
-                <p>Loading...</p>
-            </div>
-        </body>
-        </html>
-        EOF
-        
-    - name: Configure Capacitor
-      run: |
-        cat > capacitor.config.ts << 'EOF'
-        import type { CapacitorConfig } from '@capacitor/cli';
-        
-        const config: CapacitorConfig = {
-          appId: 'com.humi.journal',
-          appName: 'HUMI',
-          webDir: 'dist',
-          server: {
-            androidScheme: 'https'
-          }
-        };
-        
-        export default config;
-        EOF
+        echo '<!DOCTYPE html><html><head><title>HUMI</title></head><body><div id="root"><h1>HUMI</h1></div></body></html>' > dist/index.html
         
     - name: Add Android platform
       run: npx cap add android
         
-    - name: Setup assets
+    - name: Create assets
       run: |
+        mkdir -p android/app/src/main/assets
+        cp dist/index.html android/app/src/main/assets/
+        echo '{}' > android/app/src/main/assets/capacitor.config.json
+        echo '[]' > android/app/src/main/assets/capacitor.plugins.json
+        
+    - name: Generate keystore
+      run: |
+        keytool -genkey -v -keystore android/app/key.jks \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias key -storepass pass123 -keypass pass123 \
+          -dname "CN=HUMI, O=HUMI, C=IT"
+        
+    - name: Configure signing
+      run: |
+        echo "HUMI_RELEASE
