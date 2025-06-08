@@ -74,8 +74,8 @@ jobs:
         
     - name: Sync Capacitor
       run: |
-        npx cap add android --quiet || true
-        npx cap sync android --quiet
+        npx cap add android || true
+        npx cap sync android
         echo "Capacitor sync completed"
         
     - name: Generate signing keystore
