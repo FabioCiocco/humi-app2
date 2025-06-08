@@ -41,15 +41,4 @@ jobs:
         mkdir -p android/app/src/main/assets
         cp dist/index.html android/app/src/main/assets/
         echo '{}' > android/app/src/main/assets/capacitor.config.json
-        echo '[]' > android/app/src/main/assets/capacitor.plugins.json
-        
-    - name: Generate keystore
-      run: |
-        keytool -genkey -v -keystore android/app/key.jks \
-          -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias key -storepass pass123 -keypass pass123 \
-          -dname "CN=HUMI, O=HUMI, C=IT"
-        
-    - name: Configure signing
-      run: |
-        echo "HUMI_RELEASE
+        echo
