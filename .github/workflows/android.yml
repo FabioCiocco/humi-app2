@@ -1,4 +1,4 @@
-name: HUMI Android Bundle
+name: HUMI App Bundle Production
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
     - uses: actions/checkout@v4
@@ -26,36 +26,52 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Accept Android licenses
+    - name: Accept licenses
       run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
       
     - name: Install dependencies
       run: npm ci --legacy-peer-deps
       
-    - name: Build frontend only
+    - name: Build Vite only (skip server)
       run: |
         export NODE_ENV=production
-        npx vite build --config vite.config.ts
+        npx vite build
         
-    - name: Verify build output
-      run: |
-        ls -la dist/public/
-        echo "Build files ready for Capacitor"
-        
-    - name: Setup Capacitor webDir
+    - name: Prepare Capacitor web directory
       run: |
         mkdir -p client/dist
         cp -r dist/public/* client/dist/
+        echo "Capacitor webDir prepared:"
         ls -la client/dist/
         
-    - name: Capacitor operations
+    - name: Sync Capacitor
       run: |
-        npx cap add android || echo "Android platform exists"
+        npx cap add android || echo "Platform exists"
         npx cap sync android
         
-    - name: Create signing keystore
+    - name: Generate keystore
       run: |
         keytool -genkey -v -keystore android/app/upload-keystore.jks \
           -keyalg RSA -keysize 2048 -validity 10000 \
           -alias upload -storepass password -keypass password \
-          -dname "CN=HUMI,
+          -dname "CN=HUMI, OU=Development, O=HUMI, L=Milan, S=IT, C=IT"
+        
+    - name: Configure signing
+      run: |
+        echo "HUMI_RELEASE_STORE_FILE=upload-keystore.jks" >> android/gradle.properties
+        echo "HUMI_RELEASE_KEY_ALIAS=upload" >> android/gradle.properties
+        echo "HUMI_RELEASE_STORE_PASSWORD=password" >> android/gradle.properties
+        echo "HUMI_RELEASE_KEY_PASSWORD=password" >> android/gradle.properties
+        
+    - name: Build AAB
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew clean bundleRelease --no-daemon --stacktrace
+        
+    - name: Upload AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: humi-production-bundle
+        path: android/app/build/outputs/bundle/release/app-release.aab
+        retention-days: 30
