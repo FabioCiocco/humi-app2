@@ -54,8 +54,8 @@ jobs:
         
     - name: Initialize Capacitor Android
       run: |
-        npx cap add android --quiet || echo "Android platform exists"
-        npx cap copy android
+        npx cap add android || echo "Android platform already exists"
+        npx cap sync android
         
     - name: Create keystore
       run: |
