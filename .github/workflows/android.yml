@@ -1,4 +1,4 @@
-name: Build Google Play Ready Bundle v1.0.2
+name: Build Google Play Bundle v1.0.2 Fixed
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies
       run: npm install
         
-    - name: Create proper web build
+    - name: Create web build
       run: |
         mkdir -p dist
         cat > dist/index.html << 'EOF'
@@ -38,22 +38,17 @@ jobs:
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>HUMI - Daily Journal</title>
-            <meta name="description" content="HUMI - Daily emotional wellness journal">
         </head>
         <body>
             <div id="root">
-                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-                    <div style="text-align: center;">
-                        <h1>HUMI</h1>
-                        <p>Loading your daily journal...</p>
-                    </div>
-                </div>
+                <h1>HUMI</h1>
+                <p>Loading...</p>
             </div>
         </body>
         </html>
         EOF
         
-    - name: Configure Capacitor properly
+    - name: Configure Capacitor
       run: |
         cat > capacitor.config.ts << 'EOF'
         import type { CapacitorConfig } from '@capacitor/cli';
@@ -62,12 +57,8 @@ jobs:
           appId: 'com.humi.journal',
           appName: 'HUMI',
           webDir: 'dist',
-          bundledWebRuntime: false,
           server: {
             androidScheme: 'https'
-          },
-          android: {
-            allowMixedContent: true
           }
         };
         
@@ -77,49 +68,5 @@ jobs:
     - name: Add Android platform
       run: npx cap add android
         
-    - name: Prepare Android assets
+    - name: Setup assets
       run: |
-        mkdir -p android/app/src/main/assets
-        cp -r dist/* android/app/src/main/assets/ 2>/dev/null || true
-        echo '{"name":"HUMI","appId":"com.humi.journal"}' > android/app/src/main/assets/capacitor.config.json
-        echo '[]' > android/app/src/main/assets/capacitor.plugins.json
-        
-    - name: Create release keystore
-      run: |
-        keytool -genkey -v -keystore android/app/humi-release.keystore \
-          -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias humi-release -storepass HumiApp2025Secure -keypass HumiApp2025Secure \
-          -dname "CN=HUMI, OU=Apps, O=HUMI Ltd, L=Rome, ST=Lazio, C=IT"
-        
-    - name: Configure release signing
-      run: |
-        cat >> android/gradle.properties << 'EOF'
-        HUMI_RELEASE_STORE_FILE=humi-release.keystore
-        HUMI_RELEASE_KEY_ALIAS=humi-release
-        HUMI_RELEASE_STORE_PASSWORD=HumiApp2025Secure
-        HUMI_RELEASE_KEY_PASSWORD=HumiApp2025Secure
-        EOF
-        
-    - name: Update Android manifest
-      run: |
-        sed -i 's/android:exported="true"/android:exported="true" android:theme="@style\/AppTheme.NoActionBarLaunch"/' android/app/src/main/AndroidManifest.xml
-        
-    - name: Build release bundle
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew clean
-        ./gradlew bundleRelease --no-daemon --warning-mode all
-        
-    - name: Verify bundle integrity
-      run: |
-        cd android/app/build/outputs/bundle/release
-        ls -la app-release.aab
-        echo "Bundle size: $(stat -c%s app-release.aab) bytes"
-        
-    - name: Upload Google Play Bundle
-      uses: actions/upload-artifact@v4
-      with:
-        name: humi-googleplay-bundle-v1-0-2
-        path: android/app/build/outputs/bundle/release/app-release.aab
-        retention-days: 30
