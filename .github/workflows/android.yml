@@ -32,46 +32,7 @@ jobs:
     - name: Install dependencies
       run: npm ci --legacy-peer-deps
       
-    - name: Build Vite only (skip server)
+    - name: Build optimized production bundle
       run: |
         export NODE_ENV=production
-        npx vite build
-        
-    - name: Prepare Capacitor web directory
-      run: |
-        mkdir -p client/dist
-        cp -r dist/public/* client/dist/
-        echo "Capacitor webDir prepared:"
-        ls -la client/dist/
-        
-    - name: Sync Capacitor
-      run: |
-        npx cap add android || echo "Platform exists"
-        npx cap sync android
-        
-    - name: Generate keystore
-      run: |
-        keytool -genkey -v -keystore android/app/upload-keystore.jks \
-          -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias upload -storepass password -keypass password \
-          -dname "CN=HUMI, OU=Development, O=HUMI, L=Milan, S=IT, C=IT"
-        
-    - name: Configure signing
-      run: |
-        echo "HUMI_RELEASE_STORE_FILE=upload-keystore.jks" >> android/gradle.properties
-        echo "HUMI_RELEASE_KEY_ALIAS=upload" >> android/gradle.properties
-        echo "HUMI_RELEASE_STORE_PASSWORD=password" >> android/gradle.properties
-        echo "HUMI_RELEASE_KEY_PASSWORD=password" >> android/gradle.properties
-        
-    - name: Build AAB
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew clean bundleRelease --no-daemon --stacktrace
-        
-    - name: Upload AAB
-      uses: actions/upload-artifact@v4
-      with:
-        name: humi-production-bundle
-        path: android/app/build/outputs/bundle/release/app-release.aab
-        retention-days: 30
+        export VITE_FIREBASE_
