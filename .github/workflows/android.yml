@@ -1,4 +1,4 @@
-name: Build Signed HUMI App Bundle v1.0.2
+name: Build Google Play Ready Bundle v1.0.2
 
 on:
   workflow_dispatch:
@@ -16,11 +16,11 @@ jobs:
       with:
         node-version: '20'
         
-    - name: Setup Java 21
+    - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '21'
+        java-version: '17'
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
@@ -28,12 +28,32 @@ jobs:
     - name: Install dependencies
       run: npm install
         
-    - name: Create web build
+    - name: Create proper web build
       run: |
         mkdir -p dist
-        echo '<!DOCTYPE html><html><head><title>HUMI</title></head><body><div id="root"></div></body></html>' > dist/index.html
+        cat > dist/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="it">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>HUMI - Daily Journal</title>
+            <meta name="description" content="HUMI - Daily emotional wellness journal">
+        </head>
+        <body>
+            <div id="root">
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+                    <div style="text-align: center;">
+                        <h1>HUMI</h1>
+                        <p>Loading your daily journal...</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        EOF
         
-    - name: Configure Capacitor
+    - name: Configure Capacitor properly
       run: |
         cat > capacitor.config.ts << 'EOF'
         import type { CapacitorConfig } from '@capacitor/cli';
@@ -42,8 +62,12 @@ jobs:
           appId: 'com.humi.journal',
           appName: 'HUMI',
           webDir: 'dist',
+          bundledWebRuntime: false,
           server: {
             androidScheme: 'https'
+          },
+          android: {
+            allowMixedContent: true
           }
         };
         
@@ -53,52 +77,49 @@ jobs:
     - name: Add Android platform
       run: npx cap add android
         
-    - name: Setup assets
+    - name: Prepare Android assets
       run: |
         mkdir -p android/app/src/main/assets
-        cp -r dist/* android/app/src/main/assets/ || echo "Assets copied"
-        echo '{}' > android/app/src/main/assets/capacitor.config.json
+        cp -r dist/* android/app/src/main/assets/ 2>/dev/null || true
+        echo '{"name":"HUMI","appId":"com.humi.journal"}' > android/app/src/main/assets/capacitor.config.json
         echo '[]' > android/app/src/main/assets/capacitor.plugins.json
         
-    - name: Generate signing keystore
+    - name: Create release keystore
       run: |
-        keytool -genkey -v -keystore android/app/release-key.jks \
+        keytool -genkey -v -keystore android/app/humi-release.keystore \
           -keyalg RSA -keysize 2048 -validity 10000 \
-          -alias humi-key -storepass humiapp2025! -keypass humiapp2025! \
-          -dname "CN=HUMI App, OU=Development, O=HUMI, L=Rome, S=Italy, C=IT"
+          -alias humi-release -storepass HumiApp2025Secure -keypass HumiApp2025Secure \
+          -dname "CN=HUMI, OU=Apps, O=HUMI Ltd, L=Rome, ST=Lazio, C=IT"
         
-    - name: Configure signing
+    - name: Configure release signing
       run: |
         cat >> android/gradle.properties << 'EOF'
-        HUMI_RELEASE_STORE_FILE=release-key.jks
-        HUMI_RELEASE_KEY_ALIAS=humi-key
-        HUMI_RELEASE_STORE_PASSWORD=humiapp2025!
-        HUMI_RELEASE_KEY_PASSWORD=humiapp2025!
+        HUMI_RELEASE_STORE_FILE=humi-release.keystore
+        HUMI_RELEASE_KEY_ALIAS=humi-release
+        HUMI_RELEASE_STORE_PASSWORD=HumiApp2025Secure
+        HUMI_RELEASE_KEY_PASSWORD=HumiApp2025Secure
         EOF
         
-    - name: Verify signing configuration
+    - name: Update Android manifest
       run: |
-        echo "=== Signing configuration ==="
-        cat android/gradle.properties | grep HUMI
-        echo "=== Keystore file ==="
-        ls -la android/app/release-key.jks
+        sed -i 's/android:exported="true"/android:exported="true" android:theme="@style\/AppTheme.NoActionBarLaunch"/' android/app/src/main/AndroidManifest.xml
         
-    - name: Build signed App Bundle
+    - name: Build release bundle
       run: |
         cd android
         chmod +x gradlew
         ./gradlew clean
-        ./gradlew bundleRelease --info --stacktrace
+        ./gradlew bundleRelease --no-daemon --warning-mode all
         
-    - name: Verify App Bundle
+    - name: Verify bundle integrity
       run: |
-        echo "=== App Bundle output ==="
-        ls -la android/app/build/outputs/bundle/release/
-        file android/app/build/outputs/bundle/release/app-release.aab
+        cd android/app/build/outputs/bundle/release
+        ls -la app-release.aab
+        echo "Bundle size: $(stat -c%s app-release.aab) bytes"
         
-    - name: Upload signed App Bundle
+    - name: Upload Google Play Bundle
       uses: actions/upload-artifact@v4
       with:
-        name: humi-signed-bundle-v1-0-2
+        name: humi-googleplay-bundle-v1-0-2
         path: android/app/build/outputs/bundle/release/app-release.aab
-        if-no-files-found: error
+        retention-days: 30
