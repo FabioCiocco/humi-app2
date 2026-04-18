@@ -1,0 +1,140 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { type Language, translations, formatMessage } from '@/lib/i18n';
+import { geolocationService } from '@/lib/geolocation';
+
+const countryToLanguage: Record<string, Language> = {
+  IT: 'it', SM: 'it', VA: 'it',
+  ES: 'es', MX: 'es', AR: 'es', CO: 'es', PE: 'es', VE: 'es',
+  CL: 'es', EC: 'es', GT: 'es', CU: 'es', BO: 'es', DO: 'es',
+  HN: 'es', PY: 'es', SV: 'es', NI: 'es', CR: 'es', PA: 'es',
+  UY: 'es', GQ: 'es', PR: 'es',
+  FR: 'fr', MC: 'fr', BJ: 'fr', BF: 'fr', CI: 'fr', SN: 'fr',
+  ML: 'fr', GN: 'fr', NE: 'fr', TG: 'fr', GA: 'fr', CD: 'fr',
+  CG: 'fr', CM: 'fr', CF: 'fr', MR: 'fr', MG: 'fr', DZ: 'fr',
+  MA: 'fr', TN: 'fr', HT: 'fr', LU: 'fr',
+  DE: 'de', AT: 'de', LI: 'de',
+};
+
+const detectFromBrowser = (): Language => {
+  const saved = localStorage.getItem('humi-language');
+  if (saved && ['en', 'it', 'es', 'fr', 'de'].includes(saved)) {
+    return saved as Language;
+  }
+  const browserLangs = [
+    navigator.language,
+    ...(navigator.languages || []),
+  ].map(l => l.toLowerCase());
+  for (const lang of browserLangs) {
+    if (lang.startsWith('it')) return 'it';
+    if (lang.startsWith('es')) return 'es';
+    if (lang.startsWith('fr')) return 'fr';
+    if (lang.startsWith('de')) return 'de';
+    if (lang.startsWith('en')) return 'en';
+  }
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz.includes('Rome') || tz.includes('Vatican')) return 'it';
+    if (tz.includes('Paris') || tz.includes('Brussels')) return 'fr';
+    if (tz.includes('Berlin') || tz.includes('Vienna') || tz.includes('Zurich')) return 'de';
+    if (tz.includes('Madrid') || tz.includes('Mexico') || tz.includes('Buenos_Aires')) return 'es';
+  } catch {}
+  return 'it';
+};
+
+const detectFromGeolocation = async (): Promise<Language | null> => {
+  const saved = localStorage.getItem('humi-language');
+  if (saved && ['en', 'it', 'es', 'fr', 'de'].includes(saved)) return null;
+  const cachedLang = localStorage.getItem('humi-geo-language');
+  const cachedTs = parseInt(localStorage.getItem('humi-geo-timestamp') || '0', 10);
+  if (cachedLang && Date.now() - cachedTs < 7 * 24 * 60 * 60 * 1000) {
+    return cachedLang as Language;
+  }
+  try {
+    const location = await geolocationService.getCurrentLocation();
+    if (!location) return null;
+    let detected: Language | null = null;
+    if (location.countryCode) {
+      const code = location.countryCode.toUpperCase();
+      detected = countryToLanguage[code] ?? null;
+    }
+    if (!detected) {
+      const tz = location.timezone || '';
+      if (tz.includes('Rome') || tz.includes('Vatican') || tz.includes('San_Marino')) detected = 'it';
+      else if (tz.includes('Paris') || tz.includes('Brussels') || tz.includes('Monaco')) detected = 'fr';
+      else if (tz.includes('Berlin') || tz.includes('Vienna') || tz.includes('Zurich') || tz.includes('Vaduz')) detected = 'de';
+      else if (tz.includes('Madrid') || tz.includes('Mexico') || tz.includes('Buenos_Aires') || tz.includes('Bogota') || tz.includes('Lima')) detected = 'es';
+      else if (tz.includes('London') || tz.includes('New_York') || tz.includes('Los_Angeles') || tz.includes('Sydney')) detected = 'en';
+    }
+    if (detected) {
+      localStorage.setItem('humi-geo-language', detected);
+      localStorage.setItem('humi-geo-timestamp', Date.now().toString());
+      return detected;
+    }
+  } catch {
+    if (cachedLang) return cachedLang as Language;
+  }
+  return null;
+};
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: keyof typeof translations.en, params?: Record<string, string | number>) => string;
+  getArray: (key: 'months' | 'weekDays' | 'weekDaysLong') => string[];
+}
+
+const LanguageContext = createContext<LanguageContextType>({
+  language: 'it',
+  setLanguage: () => {},
+  t: () => '',
+  getArray: () => [],
+});
+
+export const useLanguage = () => useContext(LanguageContext);
+
+export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [language, setLanguageState] = useState<Language>(detectFromBrowser);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('humi-language');
+    if (saved && ['en', 'it', 'es', 'fr', 'de'].includes(saved)) {
+      document.documentElement.lang = saved;
+      return;
+    }
+    detectFromGeolocation().then((detected) => {
+      if (detected && detected !== language) {
+        setLanguageState(detected);
+        document.documentElement.lang = detected;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem('humi-language', lang);
+    document.documentElement.lang = lang;
+  };
+
+  const t = (key: keyof typeof translations.en, params?: Record<string, string | number>): string => {
+    const template = (translations[language] as any)[key] ?? (translations['en'] as any)[key] ?? key;
+    if (Array.isArray(template)) return template.join(', ');
+    if (params) return formatMessage(template as string, params);
+    return template as string;
+  };
+
+  const getArray = (key: 'months' | 'weekDays' | 'weekDaysLong'): string[] => {
+    return translations[language][key] as string[];
+  };
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t, getArray }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+export type { Language };
