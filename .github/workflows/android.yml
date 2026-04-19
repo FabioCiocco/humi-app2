@@ -33,6 +33,9 @@ jobs:
       - name: Add Android platform if missing
         run: npx cap add android || true
 
+      - name: Create missing Android assets directory
+        run: mkdir -p android/app/src/main/assets
+
       - name: Sync Capacitor
         run: npx cap sync android
 
