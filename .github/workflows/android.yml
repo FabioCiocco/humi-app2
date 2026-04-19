@@ -30,6 +30,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Add Android platform if missing
+        run: npx cap add android || true
+
       - name: Sync Capacitor
         run: npx cap sync android
 
@@ -37,6 +40,60 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > $GITHUB_WORKSPACE/humi-release.jks
           echo "Keystore size: $(wc -c < $GITHUB_WORKSPACE/humi-release.jks) bytes"
+
+      - name: Copy signing config to build.gradle
+        run: |
+          cat > android/app/build.gradle << 'EOF'
+          apply plugin: 'com.android.application'
+
+          android {
+              namespace "com.humi.journal"
+              compileSdk rootProject.ext.compileSdkVersion
+              defaultConfig {
+                  applicationId "com.humi.journal"
+                  minSdkVersion rootProject.ext.minSdkVersion
+                  targetSdkVersion rootProject.ext.targetSdkVersion
+                  versionCode 4
+                  versionName "1.0.3"
+                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+              }
+              signingConfigs {
+                  release {
+                      if (project.hasProperty('HUMI_RELEASE_STORE_FILE')) {
+                          storeFile file(HUMI_RELEASE_STORE_FILE)
+                          storePassword HUMI_RELEASE_STORE_PASSWORD
+                          keyAlias HUMI_RELEASE_KEY_ALIAS
+                          keyPassword HUMI_RELEASE_KEY_PASSWORD
+                      }
+                  }
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+
+          repositories {
+              flatDir {
+                  dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+              }
+          }
+
+          dependencies {
+              implementation fileTree(dir: 'libs', include: ['*.jar'])
+              implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+              implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+              implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+              implementation project(':capacitor-android')
+              testImplementation "junit:junit:$junitVersion"
+              androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+              androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+              implementation project(':capacitor-cordova-android-plugins')
+          }
+          EOF
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
